@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sakura ChemLab 3D Online ✨ — Бірінші жақтан Онлайн Химия Зертханасы</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        sakura: {
+                            50: '#fff1f5', 100: '#ffe4ec', 200: '#fecdd9', 300: '#fda4ba',
+                            400: '#fb7196', 500: '#f43f72', 600: '#e11d58', 700: '#be1247',
+                            800: '#9f123e', 900: '#88133a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html, body { width: 100vw; height: 100vh; margin: 0; padding: 0; overflow: hidden; background: #230d21; font-family: 'Nunito', sans-serif; user-select: none; }
+        #three-container { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 1; }
+        .glass-pink { background: rgba(255, 245, 249, 0.92); backdrop-filter: blur(18px); border: 2px solid rgba(251, 113, 150, 0.45); box-shadow: 0 14px 36px -6px rgba(225, 29, 88, 0.25); }
+        .glossy-btn { background: linear-gradient(180deg, #ff7aa2 0%, #f43f72 100%); box-shadow: 0 6px 18px -3px rgba(244, 63, 114, 0.55); transition: transform 0.16s ease; }
+        .glossy-btn:hover { transform: translateY(-1.5px) scale(1.02); }
+        .glossy-btn:active { transform: scale(0.96); }
+        @keyframes pulseCrosshair { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.25); } }
+        .crosshair-active { animation: pulseCrosshair 1s ease-in-out infinite; border-color: #f43f72 !important; background: rgba(244, 63, 114, 0.35) !important; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-thumb { background: #fb7196; border-radius: 6px; }
+    </style>
+</head>
+<body class="text-sakura-950">
+
+    <div id="three-container"></div>
+
+    <!-- LOBBY OVERLAY -->
+    <div id="lobby-overlay" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-br from-sakura-950/80 via-purple-950/80 to-pink-950/80 backdrop-blur-md">
+        <div class="glass-pink w-full max-w-md rounded-3xl p-6 sm:p-7 border-2 border-white shadow-2xl">
+            <div class="flex items-center gap-3.5 mb-5">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-b from-sakura-200 to-purple-200 border-2 border-white shadow flex items-center justify-center text-2xl">🌸</div>
+                <div>
+                    <span class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-sakura-500 text-white tracking-wider">3D Online Multiplayer</span>
+                    <h1 class="text-xl font-black text-sakura-800 mt-1">Sakura ChemLab 3D ✨</h1>
+                    <p class="text-xs font-bold text-sakura-700/80">Достарыңмен бірге зертханаға кір!</p>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-3.5">
+                <div>
+                    <label class="block text-xs font-extrabold text-sakura-800 mb-1">Химик есіміңіз:</label>
+                    <input type="text" id="lobby-name" value="" placeholder="Атыңызды жазыңыз..." maxlength="18"
+                        class="w-full bg-white border-2 border-sakura-300 focus:border-sakura-500 rounded-2xl px-3.5 py-2.5 text-sm font-extrabold text-sakura-950 outline-none shadow-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-extrabold text-sakura-800 mb-1">Бөлме коды (Достармен бірдей жаз):</label>
+                    <input type="text" id="lobby-room" value="SAKURA-101" placeholder="SAKURA-101" maxlength="16"
+                        class="w-full bg-white border-2 border-purple-300 focus:border-purple-500 rounded-2xl px-3.5 py-2.5 text-sm font-mono font-extrabold text-purple-900 uppercase outline-none shadow-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-extrabold text-sakura-800 mb-1.5">Аватар түсін таңда:</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button type="button" onclick="selectAvatarColor('#f43f72', this)" class="avatar-col-btn ring-2 ring-offset-2 ring-sakura-500 p-2 rounded-2xl bg-white border border-sakura-200 flex flex-col items-center gap-1">
+                            <span class="w-6 h-6 rounded-full bg-[#f43f72] border-2 border-white shadow"></span>
+                            <span class="text-[10px] font-extrabold text-sakura-800">Сакура</span>
+                        </button>
+                        <button type="button" onclick="selectAvatarColor('#a855f7', this)" class="avatar-col-btn p-2 rounded-2xl bg-white border border-purple-200 flex flex-col items-center gap-1">
+                            <span class="w-6 h-6 rounded-full bg-[#a855f7] border-2 border-white shadow"></span>
+                            <span class="text-[10px] font-extrabold text-purple-800">Лаванда</span>
+                        </button>
+                        <button type="button" onclick="selectAvatarColor('#10b981', this)" class="avatar-col-btn p-2 rounded-2xl bg-white border border-emerald-200 flex flex-col items-center gap-1">
+                            <span class="w-6 h-6 rounded-full bg-[#10b981] border-2 border-white shadow"></span>
+                            <span class="text-[10px] font-extrabold text-emerald-800">Жалбыз</span>
+                        </button>
+                        <button type="button" onclick="selectAvatarColor('#0ea5e9', this)" class="avatar-col-btn p-2 rounded-2xl bg-white border border-sky-200 flex flex-col items-center gap-1">
+                            <span class="w-6 h-6 rounded-full bg-[#0ea5e9] border-2 border-white shadow"></span>
+                            <span class="text-[10px] font-extrabold text-sky-800">Аспан</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button onclick="enterLabWorld()" class="glossy-btn w-full py-3.5 rounded-2xl text-white font-black text-base flex items-center justify-center gap-2 mt-2 border-2 border-white">
+                    <span>🚀 Зертханаға кіру (Online)</span>
+                </button>
+
+                <div class="bg-sakura-100/90 p-3 rounded-2xl border border-sakura-300 text-[11px] font-bold text-sakura-900 grid grid-cols-2 gap-1.5">
+                    <div>🚶 <span class="font-mono bg-white px-1 rounded">WASD</span> — Жүру</div>
+                    <div>🏃 <span class="font-mono bg-white px-1 rounded">Shift</span> — Жылдамдату</div>
+                    <div>🖱️ <span class="font-mono bg-white px-1 rounded">Тышқан</span> — Қарау</div>
+                    <div>💬 <span class="font-mono bg-white px-1 rounded">T / Enter</span> — Чат</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN GAME HUD -->
+    <div id="hud-layer" class="hidden fixed inset-0 z-20 pointer-events-none flex flex-col justify-between p-4">
+        <div class="flex justify-between items-start pointer-events-auto">
+            <div class="glass-pink px-4 py-2.5 rounded-2xl flex items-center gap-3 shadow-lg">
+                <div id="hud-avatar-dot" class="w-9 h-9 rounded-full bg-sakura-500 text-white font-black flex items-center justify-center text-sm shadow">А</div>
+                <div>
+                    <div id="hud-player-name" class="font-black text-xs text-sakura-900">Химик</div>
+                    <div class="text-[10px] font-bold text-sakura-600">Бөлме: <span id="hud-room-code">SAKURA-101</span></div>
+                </div>
+            </div>
+            <div class="glass-pink px-4 py-2 rounded-2xl flex items-center gap-3 shadow-lg text-xs font-black text-sakura-800">
+                <span>👥 Онлайн: <span id="hud-online-count" class="text-sakura-600 font-mono">1</span></span>
+                <span id="net-status-tag" class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-mono">● Қосылуда...</span>
+            </div>
+        </div>
+
+        <div id="crosshair" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white/80 bg-white/20 pointer-events-none"></div>
+
+        <!-- BOTTOM CHAT -->
+        <div class="flex justify-between items-end pointer-events-auto">
+            <div class="glass-pink w-80 max-h-40 rounded-2xl p-3 flex flex-col gap-1.5 shadow-lg">
+                <div class="text-[10px] font-black text-sakura-800 uppercase tracking-wider">💬 Онлайн Чат</div>
+                <div id="chat-feed" class="h-24 overflow-y-auto text-[11px] font-bold flex flex-col gap-1 pr-1">
+                    <div class="text-sakura-700 bg-sakura-100/60 p-1 rounded">🌸 Зертханаға қош келдіңіз! Достарыңызбен бірге сөйлесіңіз.</div>
+                </div>
+                <div class="flex gap-1.5 mt-1">
+                    <input type="text" id="chat-input" placeholder="Хабарлама..." class="flex-1 bg-white border border-sakura-300 rounded-xl px-2.5 py-1 text-xs font-bold text-sakura-950 outline-none">
+                    <button onclick="sendChatMessage()" class="glossy-btn px-3 py-1 rounded-xl text-white text-xs font-black">Жіберу</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE & 3D MULTIPLAYER ENGINE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, addDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        lucide.createIcons();
+
+        const state = {
+            playerName: 'Химик',
+            roomCode: 'SAKURA-101',
+            avatarColor: '#f43f72',
+            inWorld: false,
+            uid: 'local-' + Math.random().toString(36).slice(2, 9),
+            db: null,
+            authReady: false,
+            remotePlayers: new Map(),
+            seenChatIds: new Set()
+        };
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBUyUrtHuOjnRtsCgxlZzaU3rHYfXE6_U0",
+            authDomain: "sakura-lab-b0dbf.firebaseapp.com",
+            projectId: "sakura-lab-b0dbf",
+            storageBucket: "sakura-lab-b0dbf.firebasestorage.app",
+            messagingSenderId: "915356894202",
+            appId: "1:915356894202:web:ae82e99f999b8579ef1a43"
+        };
+
+        async function initBackend() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                const db = getFirestore(app);
+                await signInAnonymously(auth);
+
+                state.uid = auth.currentUser.uid;
+                state.db = db;
+                state.authReady = true;
+                document.getElementById('net-status-tag').className = 'text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-mono';
+                document.getElementById('net-status-tag').textContent = '● Online Sync';
+            } catch (err) {
+                document.getElementById('net-status-tag').textContent = '● Offline Error';
+            }
+        }
+        initBackend();
+
+        window.selectAvatarColor = function (hex, btn) {
+            state.avatarColor = hex;
+            document.querySelectorAll('.avatar-col-btn').forEach(b => b.classList.remove('ring-2', 'ring-offset-2', 'ring-sakura-500'));
+            btn.classList.add('ring-2', 'ring-offset-2', 'ring-sakura-500');
+        };
+
+        window.enterLabWorld = function () {
+            state.playerName = document.getElementById('lobby-name').value.trim() || 'Химик';
+            state.roomCode = document.getElementById('lobby-room').value.trim().toUpperCase() || 'SAKURA-101';
+
+            document.getElementById('hud-player-name').textContent = state.playerName;
+            document.getElementById('hud-avatar-dot').textContent = state.playerName[0].toUpperCase();
+            document.getElementById('hud-avatar-dot').style.backgroundColor = state.avatarColor;
+            document.getElementById('hud-room-code').textContent = state.roomCode;
+
+            document.getElementById('lobby-overlay').classList.add('hidden');
+            document.getElementById('hud-layer').classList.remove('hidden');
+            state.inWorld = true;
+
+            startMultiplayerSync();
+            broadcastMessage(`🌸 ${state.playerName} зертханаға қосылды!`, true);
+            requestPointerLockSafe();
+        };
+
+        function createAvatarMesh(name, colorHex) {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.2, 0.3, 0.9, 16),
+                new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 })
+            );
+            body.position.y = 0.5;
+            group.add(body);
+
+            const head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.25, 16, 16),
+                new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3 })
+            );
+            head.position.y = 1.3;
+            group.add(head);
+            return group;
+        }
+
+        function startMultiplayerSync() {
+            if (!state.db || !state.authReady) return;
+
+            const playersCol = collection(state.db, 'artifacts', 'sakura-chemlab-3d', 'public', 'data', `room_${state.roomCode}_players`);
+            onSnapshot(playersCol, (snap) => {
+                const now = Date.now();
+                const activeIds = new Set();
+
+                snap.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const id = docSnap.id;
+                    if (now - (data.updatedAt || 0) > 25000) return;
+                    activeIds.add(id);
+
+                    if (id === state.uid) return;
+
+                    if (!state.remotePlayers.has(id)) {
+                        const m = createAvatarMesh(data.name, data.color || '#a855f7');
+                        m.position.set(data.x || 0, 0, data.z || 4);
+                        scene.add(m);
+                        state.remotePlayers.set(id, { mesh: m, targetPos: new THREE.Vector3(data.x || 0, 0, data.z || 4) });
+                    } else {
+                        state.remotePlayers.get(id).targetPos.set(data.x || 0, 0, data.z || 4);
+                    }
+                });
+
+                for (const [id, entry] of state.remotePlayers.entries()) {
+                    if (!activeIds.has(id)) {
+                        scene.remove(entry.mesh);
+                        state.remotePlayers.delete(id);
+                    }
+                }
+                document.getElementById('hud-online-count').textContent = Math.max(1, activeIds.size);
+            });
+
+            const chatCol = collection(state.db, 'artifacts', 'sakura-chemlab-3d', 'public', 'data', `room_${state.roomCode}_feed`);
+            onSnapshot(chatCol, (snap) => {
+                const items = [];
+                snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+                items.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+                items.slice(-20).forEach(msg => {
+                    if (!state.seenChatIds.has(msg.id)) {
+                        state.seenChatIds.add(msg.id);
+                        appendFeed(msg.sender, msg.text, msg.isSystem, msg.color);
+                    }
+                });
+            });
+
+            setInterval(async () => {
+                if (!state.inWorld || !state.db) return;
+                try {
+                    const ref = doc(state.db, 'artifacts', 'sakura-chemlab-3d', 'public', 'data', `room_${state.roomCode}_players`, state.uid);
+                    await setDoc(ref, {
+                        name: state.playerName,
+                        color: state.avatarColor,
+                        x: Number(camera.position.x.toFixed(2)),
+                        z: Number(camera.position.z.toFixed(2)),
+                        updatedAt: Date.now()
+                    });
+                } catch (e) {}
+            }, 300);
+        }
+
+        function appendFeed(sender, text, isSystem = false, color = '#f43f72') {
+            const feed = document.getElementById('chat-feed');
+            const row = document.createElement('div');
+            if (isSystem) {
+                row.className = 'text-purple-800 font-bold bg-pink-100 px-2 py-0.5 rounded';
+                row.textContent = text;
+            } else {
+                row.innerHTML = `<strong style="color:${color}">${sender}:</strong> <span class="text-sakura-950">${text}</span>`;
+            }
+            feed.appendChild(row);
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        async function broadcastMessage(text, isSystem = false) {
+            if (!state.db) {
+                appendFeed(state.playerName, text, isSystem, state.avatarColor);
+                return;
+            }
+            try {
+                const chatCol = collection(state.db, 'artifacts', 'sakura-chemlab-3d', 'public', 'data', `room_${state.roomCode}_feed`);
+                await addDoc(chatCol, { sender: state.playerName, color: state.avatarColor, text, isSystem, ts: Date.now() });
+            } catch (e) {}
+        }
+
+        window.sendChatMessage = function () {
+            const inp = document.getElementById('chat-input');
+            const txt = inp.value.trim();
+            if (!txt) return;
+            inp.value = '';
+            broadcastMessage(txt, false);
+        };
+
+        const container = document.getElementById('three-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xfce7f3);
+        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.68, 5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        scene.add(new THREE.DirectionalLight(0xffffff, 1).position.set(5, 10, 5));
+        scene.add(new THREE.AmbientLight(0xfff5f8, 0.8));
+
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), new THREE.MeshStandardMaterial({ color: 0xfccde2 }));
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        let yaw = 0, pitch = 0;
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if ((e.code === 'Enter' || e.code === 'KeyT') && state.inWorld) {
+                if (document.pointerLockElement) document.exitPointerLock();
+                document.getElementById('chat-input').focus();
+            }
+        });
+        window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+        function requestPointerLockSafe() {
+            try { renderer.domElement.requestPointerLock(); } catch(e) {}
+        }
+        renderer.domElement.addEventListener('click', () => { if(state.inWorld) requestPointerLockSafe(); });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!state.inWorld || document.pointerLockElement !== renderer.domElement) return;
+            yaw -= e.movementX * 0.002;
+            pitch = Math.max(-1, Math.min(1, pitch - e.movementY * 0.002));
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (state.inWorld) {
+                camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+                const speed = 0.04;
+                const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+                const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+                if (keys['KeyW']) camera.position.addScaledVector(fwd, speed);
+                if (keys['KeyS']) camera.position.addScaledVector(fwd, -speed);
+                if (keys['KeyD']) camera.position.addScaledVector(right, speed);
+                if (keys['KeyA']) camera.position.addScaledVector(right, -speed);
+            }
+
+            for (const entry of state.remotePlayers.values()) {
+                entry.mesh.position.lerp(entry.targetPos, 0.1);
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
